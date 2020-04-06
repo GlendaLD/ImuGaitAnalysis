@@ -1,0 +1,118 @@
+M/*
+
+File reads IMU Data and both prints to serial monitor and adds data to a hardcoded SD card file
+
+*/
+
+#include <SPI.h> 
+#include <SD.h> //SD Card Libraries
+#include <Arduino_LSM9DS1.h>  //Arduino IMU library
+const int chipSelect = 8; //Selecting the SD card Pin
+const int ledPin = 22;  
+const int ledPin2 = 23;
+const int ledPin3 = 24; //RGB LEDs on Arduino
+
+
+int start =0; //So headings only print to the file at the begining
+int err =0;
+
+void setup() {
+  // Open serial communications and wait for port to open:
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+  pinMode(22, OUTPUT);
+  pinMode(23, OUTPUT);
+  pinMode(24, OUTPUT); //Set RGB LEDs to outputs
+  digitalWrite(ledPin, HIGH);
+  digitalWrite(ledPin2, HIGH);
+  digitalWrite(ledPin3, HIGH);  //Switch off All three LEDs
+  Serial.print("Initializing SD card...");
+
+  // see if the card is present and can be initialized:
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Card failed, or not present");
+    // don't do anything more:
+    while (1);
+  }
+  Serial.println("card initialized.");
+  
+  if (!IMU.begin()) {
+    Serial.println("Failed to initialize IMU!");
+    while (1);
+  }
+  Serial.println("Accellerometer\t \tGyroscope");
+  Serial.println("X\tY\tZ\tX\tY\tZ");//Print column headings to the serial monitor
+}
+
+void loop() {
+
+  // make a string for assembling the data to log:
+  String dataString = ""; // to store the values to be written to the data file
+  float xa, ya, za, xg, yg, zg; // x, y and z for accellerometer and gyroscope
+
+
+  // open the file. note that only one file can be open at a time,
+  // so you have to close this one before opening another.
+  File dataFile = SD.open("Steps.txt", FILE_WRITE); 
+  if (start==0)  {
+    dataFile.println("Accellerometer\t \tGyroscope");
+    dataFile.println("X\tY\tZ\tX\tY\tZ");
+    start = start+1;    //Print the heading to the data file
+  }
+  // if the file is available, write to it:
+  if (dataFile) {
+    err=0;
+    if (IMU.accelerationAvailable()) {
+      IMU.readAcceleration(xa, ya, za);  // read the imu data to variables x, y, and z
+    }
+    else {
+      Serial.println("error reading IMU Accelerometer");
+      dataFile.println("error reading IMU Accelerometer");
+      digitalWrite(ledPin, LOW);
+      digitalWrite(ledPin2, HIGH);  //If there is an issue reading the IMU, switch off the green LED and on the red
+    }
+    if (IMU.gyroscopeAvailable()) {
+      IMU.readGyroscope(xg, yg, zg);
+    }
+    else {
+      Serial.println("error reading IMU Gyroscope");
+      dataFile.println("error reading IMU Gyroscop");
+      digitalWrite(ledPin, LOW);
+      digitalWrite(ledPin2, HIGH);  //If there is an issue reading the IMU, switch off the green LED and on the red
+    }
+
+    dataString = String(xa);
+    dataString += String('\t');
+    dataString += String(ya);
+    dataString += String('\t');    
+    dataString += String(za); 
+    dataString += String('\t');
+    dataString += String(xg);
+    dataString += String('\t');
+    dataString += String(yg);
+    dataString += String('\t');    
+    dataString += String(za); 
+
+
+       
+    dataFile.println(dataString);
+    dataFile.close();
+    // print to the serial port too:
+    Serial.println(dataString);
+    digitalWrite(ledPin, HIGH);
+    digitalWrite(ledPin2, LOW); //If the datafile is successfully opened, write data to file, switch off Red LED and on green
+    err=0;
+  }
+  // if the file isn't open, pop up an error:
+  else if (!dataFile) {
+    if (err==0){
+      Serial.println("error opening datalog.txt");
+      digitalWrite(ledPin, LOW);
+      digitalWrite(ledPin2, HIGH);  //If datafile can't be opened, switch on the red LED, off the green and print error
+      err=1; 
+    }
+  }
+
+}
