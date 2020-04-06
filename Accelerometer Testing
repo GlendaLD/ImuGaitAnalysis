@@ -64,6 +64,7 @@ void loop() {
     }
     else {
       Serial.println("error reading IMU");
+      dataFile.println("error reading IMU");
       digitalWrite(ledPin, LOW);
       digitalWrite(ledPin2, HIGH);  //If there is an issue reading the IMU, switch off the green LED and on the red
     }
